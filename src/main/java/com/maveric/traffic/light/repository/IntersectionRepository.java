@@ -1,10 +1,12 @@
 package com.maveric.traffic.light.repository;
 
 import com.maveric.traffic.light.model.Intersection;
+import org.springframework.stereotype.Repository;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+@Repository
 public class IntersectionRepository {
     private final Map<String, Intersection> intersections = new ConcurrentHashMap<>();
 
