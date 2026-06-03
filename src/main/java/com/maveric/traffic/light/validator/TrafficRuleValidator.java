@@ -16,6 +16,10 @@ public class TrafficRuleValidator {
         if(current == LightColor.GREEN && target == LightColor.RED) {
             throw new InvalidTransitionException("GREEN must go through YELLOW");
         }
+
+        if(current == LightColor.RED && target == LightColor.GREEN) {
+            throw new InvalidTransitionException("RED must go through YELLOW");
+        }
     }
 
     public void validateConflictingGreen(Direction direction, LightColor target,
