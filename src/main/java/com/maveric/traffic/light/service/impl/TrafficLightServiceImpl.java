@@ -11,12 +11,14 @@ import com.maveric.traffic.light.model.TrafficHistory;
 import com.maveric.traffic.light.repository.TrafficHistoryRepository;
 import com.maveric.traffic.light.repository.IntersectionRepository;
 import com.maveric.traffic.light.service.TrafficLightService;
+import com.maveric.traffic.light.util.IntersectionLockManager;
 import com.maveric.traffic.light.validator.TrafficRuleValidator;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.locks.ReentrantLock;
 
 @Service
 public class TrafficLightServiceImpl implements TrafficLightService {
@@ -24,38 +26,50 @@ public class TrafficLightServiceImpl implements TrafficLightService {
     private final IntersectionRepository intersectionRepository;
     private final TrafficRuleValidator trafficRuleValidator;
     private final TrafficHistoryRepository trafficHistoryRepository;
+    private final IntersectionLockManager intersectionLockManager;
 
     TrafficLightServiceImpl(IntersectionRepository intersectionRepository,
                             TrafficRuleValidator trafficRuleValidator,
-                            TrafficHistoryRepository trafficHistoryRepository) {
+                            TrafficHistoryRepository trafficHistoryRepository,
+                            IntersectionLockManager intersectionLockManager) {
         this.intersectionRepository = intersectionRepository;
         this.trafficRuleValidator = trafficRuleValidator;
         this.trafficHistoryRepository = trafficHistoryRepository;
+        this.intersectionLockManager = intersectionLockManager;
     }
 
     @Override
     public void changeSignal(String intersectionId, Direction direction,
                              LightColor targetColor) {
 
-        // get Intersection data
-        Intersection intersection = getIntersectionDetails(intersectionId);
+        ReentrantLock lock = intersectionLockManager.getLock(intersectionId);
+        lock.lock();
 
-        Signal signal = intersection.getSignals().get(direction);
-        LightColor previousColor = signal.getCurrentColor();
+        try {
 
-        //validate transition
-        trafficRuleValidator.validateTransition(previousColor, targetColor);
+            // get Intersection data
+            Intersection intersection = getIntersectionDetails(intersectionId);
 
-        //validate conflict green
-        trafficRuleValidator.validateConflictingGreen(direction, targetColor, intersection.getSignals());
+            Signal signal = intersection.getSignals().get(direction);
+            LightColor previousColor = signal.getCurrentColor();
 
-        //set signal
-        signal.setCurrentColor(targetColor);
+            //validate transition
+            trafficRuleValidator.validateTransition(previousColor, targetColor);
 
-        //update history
-        trafficHistoryRepository.save(intersectionId,
-                new TrafficHistory(direction, previousColor, targetColor,
-                        LocalDateTime.now(), intersection.getStatus()));
+            //validate conflict green
+            trafficRuleValidator.validateConflictingGreen(direction, targetColor, intersection.getSignals());
+
+            //set signal
+            signal.setCurrentColor(targetColor);
+
+            //update history
+            trafficHistoryRepository.save(intersectionId,
+                    new TrafficHistory(direction, previousColor, targetColor,
+                            LocalDateTime.now(), intersection.getStatus()));
+
+        } finally {
+            lock.unlock();
+        }
 
     }
 
