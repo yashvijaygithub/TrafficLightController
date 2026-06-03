@@ -56,7 +56,7 @@ public class TrafficLightController {
 
             @ApiResponse(
                     responseCode = "404",
-                    description = "Invalid intersection")
+                    description = "Intersection Not found")
     })
     public Intersection getState(@PathVariable String intersectionId) {
         return trafficLightService.getCurrentState(intersectionId);
